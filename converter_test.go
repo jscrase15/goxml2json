@@ -1,7 +1,6 @@
 package xml2json
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -246,12 +245,10 @@ func TestUseTokenRaw(t *testing.T) {
 			<a:body>
 				<a:sample>example</a:sample>
 			</a:body>
-		</a:bad>`
+		</a:root>`
 
-	js, err := Convert(strings.NewReader(s), WithAttrPrefix("-"), IncludeNSPrefix(true), UseRawToken(false))
+	js, err := Convert(strings.NewReader(s), WithAttrPrefix("-"), IncludeNSPrefix(true), UseRawToken(true))
 	assert.NoError(err)
-
-	fmt.Println(js.String())
 
 	jsExpected := `{
 		"a:root": {
