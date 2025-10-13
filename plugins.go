@@ -28,6 +28,8 @@ type (
 
 	includeXMLSequence bool
 
+	useRawToken bool
+
 	excluder []string
 
 	nodesFormatter struct {
@@ -99,6 +101,11 @@ func IncludeNSPrefix(v bool) *includeNSPrefix {
 func IncludeXMLSequence(v bool) *includeXMLSequence {
 	seq := includeXMLSequence(v)
 	return &seq
+}
+
+func UseRawToken(v bool) *useRawToken {
+	raw := useRawToken(v)
+	return &raw
 }
 
 func (a *attrPrefixer) AddToEncoder(e *Encoder) *Encoder {
@@ -190,6 +197,15 @@ func (i *includeXMLSequence) AddToEncoder(e *Encoder) *Encoder {
 
 func (i *includeXMLSequence) AddToDecoder(d *Decoder) *Decoder {
 	d.includeXMLSequence = bool(*i)
+	return d
+}
+
+func (u *useRawToken) AddToEncoder(e *Encoder) *Encoder {
+	return e
+}
+
+func (u *useRawToken) AddToDecoder(d *Decoder) *Decoder {
+	d.useTokenRaw = bool(*u)
 	return d
 }
 

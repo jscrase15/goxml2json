@@ -9,7 +9,14 @@ import (
 func Convert(r io.Reader, ps ...plugin) (*bytes.Buffer, error) {
 	// Decode XML document
 	root := &Node{}
-	err := NewDecoder(r, ps...).Decode(root)
+
+	var err error
+	d := NewDecoder(r, ps...)
+	if d.useTokenRaw {
+		err = d.DecodeRaw(root)
+	} else {
+		err = d.Decode(root)
+	}
 	if err != nil {
 		return nil, err
 	}

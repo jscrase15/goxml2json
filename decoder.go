@@ -24,6 +24,7 @@ type Decoder struct {
 	sequencePrefix     string
 	nsPrefix           string
 	includeNSPrefix    bool
+	useTokenRaw        bool
 	excludeAttrs       map[string]bool
 	formatters         []nodeFormatter
 	NameSpacePrefix    map[string]string
@@ -136,7 +137,78 @@ func (dec *Decoder) Decode(root *Node) error {
 					elem.label = prefix + ":" + se.Name.Local
 				}
 			}
-			
+
+			if dec.includeXMLSequence {
+				elem.n.AddChild(dec.sequencePrefix+"sequence", &Node{Data: strconv.Itoa(elem.sequence)})
+			}
+		case xml.CharData:
+			// Extract XML data (if any)
+			elem.n.Data = trimNonGraphic(string(xml.CharData(se)))
+		case xml.EndElement:
+			dec.levelSequence = dec.levelSequence[:len(dec.levelSequence)-1]
+			// And add it to its parent list
+			if elem.parent != nil {
+				elem.parent.n.AddChild(elem.label, elem.n)
+			}
+
+			// Then change the current element to its parent
+			elem = elem.parent
+		}
+	}
+
+	for _, formatter := range dec.formatters {
+		formatter.Format(root)
+	}
+
+	return nil
+}
+
+// DecodeRaw acts the same as Decode, but uses Decoder.RawToken instead.
+// RawToken does not verify that start and end elements match, and,
+// crucially, does not translate namespace prefixes to their corresponding URL.
+// This is good for including the prefix in the resulting JSON.
+func (dec *Decoder) DecodeRaw(root *Node) error {
+	xmlDec := xml.NewDecoder(dec.r)
+
+	// That will convert the charset if the provided XML is non-UTF-8
+	xmlDec.CharsetReader = charset.NewReaderLabel
+
+	// Create first element from the root node
+	elem := &element{
+		parent: nil,
+		n:      root,
+	}
+	dec.levelSequence = append(dec.levelSequence, 1)
+
+	for {
+		t, _ := xmlDec.RawToken()
+		if t == nil {
+			break
+		}
+		switch se := t.(type) {
+		case xml.StartElement:
+			// Build new a new current element and link it to its parent
+			elem = &element{
+				parent:   elem,
+				n:        &Node{},
+				label:    se.Name.Local,
+				sequence: dec.levelSequence[len(dec.levelSequence)-1],
+			}
+			dec.levelSequence[len(dec.levelSequence)-1]++
+			dec.levelSequence = append(dec.levelSequence, 1)
+
+			// Extract attributes as children
+			for _, a := range se.Attr {
+				if _, ok := dec.excludeAttrs[a.Name.Local]; ok {
+					continue
+				}
+				elem.n.AddChild(dec.attributePrefix+a.Name.Local, &Node{Data: a.Value})
+			}
+
+			if se.Name.Space != "" && dec.includeNSPrefix {
+				elem.label = se.Name.Space + ":" + se.Name.Local
+			}
+
 			if dec.includeXMLSequence {
 				elem.n.AddChild(dec.sequencePrefix+"sequence", &Node{Data: strconv.Itoa(elem.sequence)})
 			}
